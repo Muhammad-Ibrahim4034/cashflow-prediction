@@ -1,0 +1,24 @@
+# ── Large Data Files — NEVER commit these to GitHub ──
+data/raw/
+data/processed/
+*.csv
+*.xlsx
+*.parquet
+*.json
+
+# ── ML Models — too large for GitHub ──
+models/*.pkl
+models/*.joblib
+models/*.h5
+
+# ── Python ──
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# ── Environment variables ──
+.env
+
+# ── MLflow ──
+mlruns/
