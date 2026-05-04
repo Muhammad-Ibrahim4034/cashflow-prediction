@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -44,19 +43,25 @@ def compute_savings_trend(df: pd.DataFrame) -> pd.Series:
 
 
 def compute_spending_volatility(df: pd.DataFrame,
-                                group_col: str = "day_of_month") -> pd.Series:
+                                group_col: str = "day_of_month",
+                                vol_mapping: dict = None,
+                                global_std: float = None) -> pd.Series:
     if group_col not in df.columns:
         group_col = "week_of_month" if "week_of_month" in df.columns else None
 
-    if group_col:
+    if group_col and vol_mapping is not None:
+        vol = df[group_col].map(vol_mapping)
+    elif group_col:
         vol = df.groupby(group_col)["amount"].transform("std")
     else:
-        vol = pd.Series(df["amount"].std(), index=df.index)
-    global_std = df["amount"].std()
+        vol = pd.Series(global_std if global_std is not None else df["amount"].std(), index=df.index)
+        
+    if global_std is None:
+        global_std = df["amount"].std()
+        
     vol = vol.fillna(global_std)
     vol.name = "spending_volatility"
     return vol
-
 
 
 def compute_balance_utilisation(df: pd.DataFrame) -> pd.Series:
@@ -140,11 +145,20 @@ class FeaturePipeline(BaseEstimator, TransformerMixin):
         self._scale_cols_present: list = []
         self._onehot_categories: list = []
         self._global_std: float = 1.0
+        self._vol_mapping: dict = {}
         self._fitted = False
 
     def fit(self, X: pd.DataFrame, y=None):
         df = X.copy()
         self._global_std = float(df["amount"].std())
+        
+        # Learn standard deviations for spending volatility mapping from training set
+        group_col = "day_of_month" if "day_of_month" in df.columns else ("week_of_month" if "week_of_month" in df.columns else None)
+        if group_col:
+            self._vol_mapping = df.groupby(group_col)["amount"].std().to_dict()
+        else:
+            self._vol_mapping = {}
+
         self._scale_cols_present = [c for c in _SCALE_COLS if c in df.columns]
         if self.scale and self._scale_cols_present:
             self._scaler.fit(df[self._scale_cols_present])
@@ -164,7 +178,9 @@ class FeaturePipeline(BaseEstimator, TransformerMixin):
         monthly_income = compute_monthly_income(df)
         expense_ratio  = compute_expense_ratio(df, monthly_income)
         savings_trend  = compute_savings_trend(df)
-        spending_vol   = compute_spending_volatility(df)
+        
+        # Apply the learned mappings to avoid data leakage
+        spending_vol   = compute_spending_volatility(df, vol_mapping=self._vol_mapping, global_std=self._global_std)
 
         df["monthly_income_est"]   = monthly_income
         df["expense_ratio"]        = expense_ratio
