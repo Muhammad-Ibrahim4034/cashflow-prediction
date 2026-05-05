@@ -1,12 +1,25 @@
+import os
 import pandas as pd
 import numpy as np
 
+# Ensure paths
+RAW_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
+PROCESSED_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "processed")
+os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
+
 print("Loading PaySim dataset (full)...")
-df_paysim = pd.read_csv("PS_20174392719_1491204439457_log.csv")
-print(f"  PaySim loaded: {len(df_paysim):,} rows")
+paysim_path = os.path.join(RAW_DATA_DIR, "PS_20174392719_1491204439457_log.csv")
+try:
+    df_paysim = pd.read_csv(paysim_path)
+    print(f"  PaySim loaded: {len(df_paysim):,} rows")
+except FileNotFoundError:
+    print(f"ERROR: Could not find raw dataset at {paysim_path}")
+    print("Please ensure you have downloaded PS_20174392719_1491204439457_log.csv and placed it in data/raw/")
+    exit(1)
 
 print("Loading World Bank dataset...")
-df_wb = pd.read_csv("world_bank_development_indicators.csv")
+wb_path = os.path.join(RAW_DATA_DIR, "world_bank_development_indicators.csv")
+df_wb = pd.read_csv(wb_path)
 df_wb["year"] = pd.to_datetime(df_wb["date"]).dt.year
 print(f"  World Bank loaded: {len(df_wb):,} rows\n")
 
@@ -99,7 +112,7 @@ df["time_of_day_bucket"] = (
 
 df["balance_change_orig"] = df["newbalanceOrig"] - df["oldbalanceOrg"]
 df["balance_change_dest"] = df["newbalanceDest"] - df["oldbalanceDest"]
-df["net_cash_flow_orig"] = df["newbalanceOrig"] - df["oldbalanceOrg"]
+df["net_cash_flow"] = df["newbalanceOrig"] - df["oldbalanceOrg"]
 
 df["amount_to_orig_balance_ratio"] = np.where(
     df["oldbalanceOrg"] > 0,
@@ -119,11 +132,13 @@ df["transaction_type_encoded"] = df["type"].map(
     {"PAYMENT": 0, "TRANSFER": 1, "CASH_OUT": 2, "DEBIT": 3, "CASH_IN": 4}
 )
 
-df.drop(columns=["nameOrig", "nameDest", "isFlaggedFraud",
-                 "isFraud", "net_cash_flow_orig", "type", "simulated_year"], inplace=True)
+# Rename to target column names required by the ML Pipeline
+df.rename(columns={"isFraud": "risk_score"}, inplace=True)
+
+df.drop(columns=["isFlaggedFraud", "type", "simulated_year"], inplace=True)
 
 FINAL_COLS = [
-    "step", "transaction_type_encoded",
+    "step", "nameOrig", "nameDest", "transaction_type_encoded",
     "hour_of_day", "day_of_month", "week_of_month", "time_of_day_bucket",
     "amount", "oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest",
     "balance_change_orig", "balance_change_dest",
@@ -132,28 +147,29 @@ FINAL_COLS = [
     "market_inflation_rate", "market_GDP_USD", "market_internet_penetration_pct",
     "market_trade_services_pct", "market_gini_index", "market_tax_revenue_pct",
     "market_political_stability", "market_govt_effectiveness", "market_population",
+    "risk_score", "net_cash_flow"
 ]
 
 df_final = df[FINAL_COLS]
 
-print("\n── Validation ──────────────────────────────────────")
+print("\n-- Validation --------------------------------------")
 assert len(df_final) == 100_000, f"Row count mismatch: {len(df_final)}"
 
 nulls = df_final.isnull().sum()
 assert nulls.sum() == 0, f"Nulls found:\n{nulls[nulls > 0]}"
-print("✅ Rows       : 100,000")
-print("✅ Columns    :", len(df_final.columns))
-print("✅ Nulls      : 0")
+print("OK Rows       : 100,000")
+print("OK Columns    :", len(df_final.columns))
+print("OK Nulls      : 0")
 
 market_cols = [c for c in df_final.columns if c.startswith("market_")]
-print("\n── Market column variation (unique values per column) ──")
+print("\n-- Market column variation (unique values per column) --")
 for c in market_cols:
     print(f"   {c:40s} unique={df_final[c].nunique():3d}  std={df_final[c].std():.4f}")
 
-print("\n── Transaction type distribution ──")
+print("\n-- Transaction type distribution --")
 print(df_final["transaction_type_encoded"].value_counts().to_string())
 
-OUTPUT_PATH = "cashflow_prediction_dataset_100k.csv"
+OUTPUT_PATH = os.path.join(PROCESSED_DATA_DIR, "cashflow_prediction_dataset_100k.csv")
 df_final.to_csv(OUTPUT_PATH, index=False)
-print(f"\n✅ Saved → {OUTPUT_PATH}")
+print(f"\nOK Saved -> {OUTPUT_PATH}")
 print(f"   Shape  : {df_final.shape}")

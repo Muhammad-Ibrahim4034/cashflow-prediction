@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -40,28 +41,6 @@ def compute_savings_trend(df: pd.DataFrame) -> pd.Series:
     trend = trend.clip(lower=-1.0, upper=5.0)
     trend.name = "savings_trend"
     return trend
-
-
-def compute_spending_volatility(df: pd.DataFrame,
-                                group_col: str = "day_of_month",
-                                vol_mapping: dict = None,
-                                global_std: float = None) -> pd.Series:
-    if group_col not in df.columns:
-        group_col = "week_of_month" if "week_of_month" in df.columns else None
-
-    if group_col and vol_mapping is not None:
-        vol = df[group_col].map(vol_mapping)
-    elif group_col:
-        vol = df.groupby(group_col)["amount"].transform("std")
-    else:
-        vol = pd.Series(global_std if global_std is not None else df["amount"].std(), index=df.index)
-        
-    if global_std is None:
-        global_std = df["amount"].std()
-        
-    vol = vol.fillna(global_std)
-    vol.name = "spending_volatility"
-    return vol
 
 
 def compute_balance_utilisation(df: pd.DataFrame) -> pd.Series:
@@ -126,8 +105,6 @@ _SCALE_COLS = [
     "market_population",
 ]
 
-_CAT_COLS = ["time_of_day_bucket"]
-
 
 class FeaturePipeline(BaseEstimator, TransformerMixin):
 
@@ -145,26 +122,23 @@ class FeaturePipeline(BaseEstimator, TransformerMixin):
         self._scale_cols_present: list = []
         self._onehot_categories: list = []
         self._global_std: float = 1.0
-        self._vol_mapping: dict = {}
+        self._volatility_map: dict = {}
         self._fitted = False
+        self._last_columns = []
 
     def fit(self, X: pd.DataFrame, y=None):
         df = X.copy()
         self._global_std = float(df["amount"].std())
-        
-        # Learn standard deviations for spending volatility mapping from training set
-        group_col = "day_of_month" if "day_of_month" in df.columns else ("week_of_month" if "week_of_month" in df.columns else None)
-        if group_col:
-            self._vol_mapping = df.groupby(group_col)["amount"].std().to_dict()
-        else:
-            self._vol_mapping = {}
-
         self._scale_cols_present = [c for c in _SCALE_COLS if c in df.columns]
         if self.scale and self._scale_cols_present:
             self._scaler.fit(df[self._scale_cols_present])
 
         if self.encode_categoricals and "time_of_day_bucket" in df.columns:
             self._onehot_categories = sorted(df["time_of_day_bucket"].unique().tolist())
+
+        # Prevent Data Leakage: Learn volatility mapping purely from training set
+        if "day_of_month" in df.columns:
+            self._volatility_map = df.groupby("day_of_month")["amount"].std().to_dict()
 
         self._fitted = True
         return self
@@ -178,9 +152,12 @@ class FeaturePipeline(BaseEstimator, TransformerMixin):
         monthly_income = compute_monthly_income(df)
         expense_ratio  = compute_expense_ratio(df, monthly_income)
         savings_trend  = compute_savings_trend(df)
-        
-        # Apply the learned mappings to avoid data leakage
-        spending_vol   = compute_spending_volatility(df, vol_mapping=self._vol_mapping, global_std=self._global_std)
+
+        # Apply learned spending volatility mapping
+        if "day_of_month" in df.columns:
+            spending_vol = df["day_of_month"].map(self._volatility_map).fillna(self._global_std)
+        else:
+            spending_vol = pd.Series(self._global_std, index=df.index)
 
         df["monthly_income_est"]   = monthly_income
         df["expense_ratio"]        = expense_ratio
@@ -210,9 +187,11 @@ class FeaturePipeline(BaseEstimator, TransformerMixin):
             raw_bal = [
                 "oldbalanceOrg", "newbalanceOrig",
                 "oldbalanceDest", "newbalanceDest",
+                "balance_change_orig", "balance_change_dest"
             ]
             df.drop(columns=[c for c in raw_bal if c in df.columns], inplace=True)
 
+        self._last_columns = list(df.columns)
         return df
 
     def fit_transform(self, X: pd.DataFrame, y=None, **fit_params) -> pd.DataFrame:
@@ -221,7 +200,7 @@ class FeaturePipeline(BaseEstimator, TransformerMixin):
     @property
     def feature_names_out(self) -> list:
         """Returns the list of output column names after last transform call."""
-        return self._last_columns if hasattr(self, "_last_columns") else []
+        return self._last_columns
 
 
 def feature_pipeline(
@@ -238,7 +217,8 @@ def feature_pipeline(
     present_targets = [c for c in target_cols if c in df_train.columns]
     y_train = df_train[present_targets].copy() if present_targets else None
 
-    drop_from_features = present_targets + ["simulated_year"]
+    # Drop high-cardinality IDs and targets from features
+    drop_from_features = present_targets + ["simulated_year", "nameOrig", "nameDest"]
     X_train_raw = df_train.drop(
         columns=[c for c in drop_from_features if c in df_train.columns]
     )
@@ -249,7 +229,7 @@ def feature_pipeline(
         drop_raw_balance_cols=drop_raw_balance_cols,
     )
     X_train = pipe.fit_transform(X_train_raw)
-    feature_names = list(X_train.columns)
+    feature_names = pipe.feature_names_out
 
     X_infer, y_infer = None, None
     if df_infer is not None:
@@ -273,10 +253,14 @@ def feature_pipeline(
 if __name__ == "__main__":
     from sklearn.model_selection import train_test_split
 
-    INPUT_PATH = "cashflow_prediction_dataset_100k.csv"
+    INPUT_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "processed", "cashflow_prediction_dataset_100k.csv")
     print(f"Loading dataset from {INPUT_PATH} ...")
-    df = pd.read_csv(INPUT_PATH)
-    print(f"  Loaded: {df.shape[0]:,} rows × {df.shape[1]} columns")
+    try:
+        df = pd.read_csv(INPUT_PATH)
+        print(f"  Loaded: {df.shape[0]:,} rows × {df.shape[1]} columns")
+    except FileNotFoundError:
+        print(f"ERROR: File not found at {INPUT_PATH}. Please run preprocessing.py first.")
+        exit(1)
 
     strat = df["risk_score"] if "risk_score" in df.columns else None
     df_train, df_test = train_test_split(df, test_size=0.2, random_state=42, stratify=strat)
@@ -288,7 +272,7 @@ if __name__ == "__main__":
         df_infer=df_test,
         scale=True,
         encode_categoricals=True,
-        drop_raw_balance_cols=False,
+        drop_raw_balance_cols=True,
     )
 
     X_train       = result["X_train"]
@@ -298,7 +282,7 @@ if __name__ == "__main__":
     pipe          = result["pipeline"]
     feature_names = result["feature_names"]
 
-    print("── Feature Engineering Validation ──────────────────────────────────")
+    print("-- Feature Engineering Validation ----------------------------------")
     print(f"  X_train shape   : {X_train.shape}")
     print(f"  X_test  shape   : {X_test.shape}")
 
@@ -316,24 +300,24 @@ if __name__ == "__main__":
         "savings_trend",
         "spending_volatility",
     ]
-    print("\n── Core Feature Stats (on training set) ────────────────────────────")
+    print("\n-- Core Feature Stats (on training set) ----------------------------")
     for feat in core_features:
         if feat in X_train.columns:
             s = X_train[feat]
             print(f"  {feat:<30s}  mean={s.mean():>12.4f}  std={s.std():>12.4f}"
                   f"  min={s.min():>12.4f}  max={s.max():>12.4f}")
         else:
-            print(f"  ❌ {feat} NOT FOUND in output")
+            print(f"  X {feat} NOT FOUND in output")
     train_nulls = X_train.isnull().sum().sum()
     test_nulls  = X_test.isnull().sum().sum()
     print(f"\n  Nulls in X_train : {train_nulls}")
     print(f"  Nulls in X_test  : {test_nulls}")
-    assert train_nulls == 0, "❌ Nulls found in training features!"
-    assert test_nulls  == 0, "❌ Nulls found in test features!"
+    assert train_nulls == 0, "X Nulls found in training features!"
+    assert test_nulls  == 0, "X Nulls found in test features!"
 
-    print("\n── All Features ────────────────────────────────────────────────────")
+    print("\n-- All Features ----------------------------------------------------")
     for i, name in enumerate(feature_names, 1):
         print(f"  {i:02d}. {name}")
 
-    print("\n✅ Feature engineering pipeline validated successfully.")
+    print("\nOK Feature engineering pipeline validated successfully.")
     print(f"   Save the pipeline with: import joblib; joblib.dump(pipe, 'feature_pipeline.pkl')")
