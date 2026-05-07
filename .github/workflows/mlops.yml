@@ -29,6 +29,11 @@ jobs:
       - name: Verify MLflow installation
         run: mlflow --version
 
+      - name: Prepare data
+        run: |
+          mkdir -p data/processed
+          cp data/raw/cashflow_prediction_dataset_100k.csv data/processed/cashflow_prediction_dataset_100k.csv
+
       - name: Run training pipeline
         run: |
           cd src
