@@ -222,4 +222,4 @@ with tab1:
 with tab2:
     st.info("Model Insights coming soon — feature importance, SHAP values, etc.")
 
-st.caption("Built with Streamlit • Random Forest Model • DevOps MLOps Pipeline")
+st.caption("Built with Streamlit • Random Forest Model • DevOps MLOps Pipeline testing")
