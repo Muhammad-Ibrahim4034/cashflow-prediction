@@ -1,0 +1,10 @@
+artifact_location: file:///D:/FAST/Dev%20Ops/project/cashflow-prediction/src/../mlruns/631230938259826139/models/m-4a5144e9131c47c098c2da9a39f74190/artifacts
+creation_timestamp: 1778241959092
+experiment_id: '631230938259826139'
+last_updated_timestamp: 1778241962177
+model_id: m-4a5144e9131c47c098c2da9a39f74190
+model_type: null
+name: model
+source_run_id: 909606ad94244f78bc7ecefdb141f6fe
+status: 2
+status_message: null

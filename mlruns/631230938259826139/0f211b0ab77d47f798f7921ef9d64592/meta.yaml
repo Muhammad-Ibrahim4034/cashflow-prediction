@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/FAST/Dev%20Ops/project/cashflow-prediction/src/../mlruns/631230938259826139/0f211b0ab77d47f798f7921ef9d64592/artifacts
+end_time: 1778241920689
+entry_point_name: ''
+experiment_id: '631230938259826139'
+lifecycle_stage: active
+run_id: 0f211b0ab77d47f798f7921ef9d64592
+run_name: Ridge
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778241917234
+status: 3
+tags: []
+user_id: ibrahim

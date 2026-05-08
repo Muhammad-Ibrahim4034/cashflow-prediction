@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/FAST/Dev%20Ops/project/cashflow-prediction/src/../mlruns/631230938259826139/e90a5cd7d40a41e0bd7e2415e7d79930/artifacts
+end_time: 1778241917227
+entry_point_name: ''
+experiment_id: '631230938259826139'
+lifecycle_stage: active
+run_id: e90a5cd7d40a41e0bd7e2415e7d79930
+run_name: LinearRegression
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778241908712
+status: 3
+tags: []
+user_id: ibrahim

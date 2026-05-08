@@ -1,0 +1,8 @@
+artifact_location: file:///D:/FAST/Dev%20Ops/project/cashflow-prediction/src/../mlruns/631230938259826139
+creation_time: 1778241907289
+experiment_id: '631230938259826139'
+last_update_time: 1778241907289
+lifecycle_stage: active
+name: cashflow-prediction
+trace_location: null
+workspace: default

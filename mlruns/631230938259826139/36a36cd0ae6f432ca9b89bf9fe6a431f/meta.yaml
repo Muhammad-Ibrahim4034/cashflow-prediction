@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/FAST/Dev%20Ops/project/cashflow-prediction/src/../mlruns/631230938259826139/36a36cd0ae6f432ca9b89bf9fe6a431f/artifacts
+end_time: 1778242020514
+entry_point_name: ''
+experiment_id: '631230938259826139'
+lifecycle_stage: active
+run_id: 36a36cd0ae6f432ca9b89bf9fe6a431f
+run_name: BEST_MODEL
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778242020386
+status: 3
+tags: []
+user_id: ibrahim

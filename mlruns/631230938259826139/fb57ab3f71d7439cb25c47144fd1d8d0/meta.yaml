@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/FAST/Dev%20Ops/project/cashflow-prediction/src/../mlruns/631230938259826139/fb57ab3f71d7439cb25c47144fd1d8d0/artifacts
+end_time: 1778242020361
+entry_point_name: ''
+experiment_id: '631230938259826139'
+lifecycle_stage: active
+run_id: fb57ab3f71d7439cb25c47144fd1d8d0
+run_name: RandomForest
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778242010122
+status: 3
+tags: []
+user_id: ibrahim

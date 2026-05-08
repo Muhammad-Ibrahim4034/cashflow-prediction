@@ -1,0 +1,23 @@
+artifact_path: file:///D:/FAST/Dev%20Ops/project/cashflow-prediction/src/../mlruns/631230938259826139/models/m-295483f6ebc94a85a863c0e5a71cad54/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.12.8
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.2
+    skops_trusted_types: null
+mlflow_version: 3.12.0
+model_id: m-295483f6ebc94a85a863c0e5a71cad54
+model_size_bytes: 1291299
+model_uuid: m-295483f6ebc94a85a863c0e5a71cad54
+prompts: null
+run_id: fb57ab3f71d7439cb25c47144fd1d8d0
+utc_time_created: '2026-05-08 12:06:56.777348'
