@@ -39,6 +39,11 @@ jobs:
           cd src
           python train_pipeline.py
 
+      - name: Run tests
+        run: |
+          pip install pytest
+          pytest tests/ -v
+
       - name: Upload MLflow tracking data
         uses: actions/upload-artifact@v4
         with:
