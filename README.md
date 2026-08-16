@@ -1,4 +1,4 @@
-<img width="1830" height="860" alt="image" src="https://github.com/user-attachments/assets/e95fc294-7802-4716-8c12-5a230da4dd4f" /># CashFlow Prediction & Forecasting
+## CashFlow Prediction & Forecasting
 
 An end-to-end **Machine Learning and MLOps project** for predicting net cash flow from transaction data and macroeconomic indicators. The project includes automated feature engineering, model training and evaluation, MLflow experiment tracking, and an interactive Streamlit dashboard.
 
